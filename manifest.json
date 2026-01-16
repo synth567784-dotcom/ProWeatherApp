@@ -1,0 +1,15 @@
+{
+  "name": "My Weather App",
+  "short_name": "Weather",
+  "start_url": "weather.html",
+  "display": "standalone",
+  "background_color": "#0072ff",
+  "theme_color": "#0072ff",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/869/869869.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

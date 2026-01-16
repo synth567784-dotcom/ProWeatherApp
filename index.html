@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Weather App</title>
+    <style>
+        :root {
+            --bg-color: linear-gradient(135deg, #00c6ff, #0072ff);
+            --card-bg: rgba(255, 255, 255, 0.2);
+            --text-color: white;
+            --input-bg: white;
+            --input-text: #333;
+            --forecast-bg: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: linear-gradient(135deg, #232526, #414345);
+            --card-bg: rgba(0, 0, 0, 0.5);
+            --text-color: #e0e0e0;
+            --input-bg: #333;
+            --input-text: white;
+            --forecast-bg: rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            background: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+            transition: background 0.5s ease;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            padding: 25px;
+            border-radius: 25px;
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-color);
+        }
+
+        .search-box { display: flex; gap: 8px; margin: 20px 0; }
+        input { 
+            flex: 1; padding: 12px; border-radius: 12px; border: none; outline: none;
+            background: var(--input-bg); color: var(--input-text); font-size: 16px;
+        }
+        button#searchBtn {
+            padding: 10px 15px; border-radius: 12px; border: none;
+            background: #4facfe; color: white; font-weight: bold; cursor: pointer;
+        }
+
+        .weather-icon { font-size: 70px; margin: 10px 0; }
+        .temp { font-size: 3rem; font-weight: bold; margin: 0; }
+        .city { font-size: 1.5rem; font-weight: 300; }
+        
+        .details { 
+            display: flex; justify-content: space-around; margin-top: 20px; 
+            background: rgba(0,0,0,0.1); padding: 12px; border-radius: 15px;
+        }
+
+        /* WEEKLY FORECAST STYLES */
+        .forecast-container {
+            margin-top: 20px;
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
+        }
+
+        .forecast-item {
+            background: var(--forecast-bg);
+            padding: 10px;
+            border-radius: 12px;
+            min-width: 65px;
+            flex-shrink: 0;
+            font-size: 0.9rem;
+        }
+
+        .forecast-day { font-weight: bold; margin-bottom: 5px; opacity: 0.9; }
+        .forecast-icon { font-size: 24px; margin: 5px 0; }
+        .forecast-temp { font-size: 0.85rem; }
+        .low-temp { opacity: 0.6; margin-left: 4px; }
+
+        small { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙</button>
+
+        <form class="search-box" id="weatherForm" onsubmit="handleSearch(event)">
+            <input type="text" id="cityInput" placeholder="Enter city name..." autocomplete="off">
+            <button type="submit" id="searchBtn">Go</button>
+        </form>
+        
+        <div class="weather-info">
+            <div class="city" id="cityName">Enter a City</div>
+            <div class="weather-icon" id="icon">🌍</div> 
+            <div class="temp" id="temp">--°C</div>
+            
+            <div class="details">
+                <div><strong id="humidity">--%</strong><br><small>Humidity</small></div>
+                <div><strong id="wind">-- km/h</strong><br><small>Wind</small></div>
+            </div>
+
+            <div class="forecast-container" id="forecastContainer">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('themeBtn');
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                btn.innerText = "🌙";
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                btn.innerText = "☀️";
+            }
+        }
+
+        function handleSearch(event) {
+            event.preventDefault();
+            getWeather();
+        }
+
+        function getWeatherIcon(code) {
+            if (code === 0) return "☀️";
+            if (code >= 1 && code <= 3) return "🌤️";
+            if (code >= 45 && code <= 48) return "🌫️";
+            if (code >= 51 && code <= 67) return "🌧️";
+            if (code >= 71 && code <= 77) return "❄️";
+            if (code >= 80 && code <= 82) return "🌦️";
+            if (code >= 95) return "⛈️";
+            return "☁️";
+        }
+
+        async function getWeather() {
+            const cityInput = document.getElementById('cityInput');
+            const city = cityInput.value;
+            if (!city) return;
+
+            try {
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
+                const geoData = await geoRes.json();
+                if (!geoData.results) return alert("City not found!");
+
+                const { latitude, longitude, name, timezone } = geoData.results[0];
+
+                // Added 'daily' parameters for 7-day forecast
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=${encodeURIComponent(timezone)}`);
+                const weatherData = await weatherRes.json();
+
+                // Update Current Weather
+                document.getElementById('cityName').innerText = name;
+                document.getElementById('temp').innerText = Math.round(weatherData.current.temperature_2m) + "°C";
+                document.getElementById('humidity').innerText = weatherData.current.relative_humidity_2m + "%";
+                document.getElementById('wind').innerText = weatherData.current.wind_speed_10m + " km/h";
+                document.getElementById('icon').innerText = getWeatherIcon(weatherData.current.weather_code);
+
+                // Update Weekly Forecast
+                updateForecast(weatherData.daily);
+
+                localStorage.setItem('lastCity', name);
+                cityInput.blur();
+
+            } catch (error) {
+                console.error(error);
+                alert("Error fetching data.");
+            }
+        }
+
+        function updateForecast(daily) {
+            const container = document.getElementById('forecastContainer');
+            container.innerHTML = ""; // Clear old data
+
+            // Loop through the 7 days (index 0 is today)
+            daily.time.forEach((dateStr, index) => {
+                const date = new Date(dateStr + "T00:00");
+                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                const icon = getWeatherIcon(daily.weather_code[index]);
+                const maxTemp = Math.round(daily.temperature_2m_max[index]);
+                const minTemp = Math.round(daily.temperature_2m_min[index]);
+
+                const dayEl = document.createElement('div');
+                dayEl.className = 'forecast-item';
+                dayEl.innerHTML = `
+                    <div class="forecast-day">${index === 0 ? 'Today' : dayName}</div>
+                    <div class="forecast-icon">${icon}</div>
+                    <div class="forecast-temp">
+                        <span>${maxTemp}°</span><span class="low-temp">${minTemp}°</span>
+                    </div>
+                `;
+                container.appendChild(dayEl);
+            });
+        }
+
+        window.onload = () => {
+            const savedCity = localStorage.getItem('lastCity');
+            if (savedCity) {
+                document.getElementById('cityInput').value = savedCity;
+                getWeather();
+            }
+
+            const hour = new Date().getHours();
+            if (hour >= 19 || hour < 7) {
+                document.body.setAttribute('data-theme', 'dark');
+                document.getElementById('themeBtn').innerText = "☀️";
+            }
+        };
+    </script>
+</body>
+</html>
