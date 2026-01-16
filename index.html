@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pro Weather App</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0072ff">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/869/869869.png">
+
     <style>
         :root {
             --bg-color: linear-gradient(135deg, #00c6ff, #0072ff);
@@ -83,7 +88,6 @@
             background: rgba(0,0,0,0.1); padding: 12px; border-radius: 15px;
         }
 
-        /* WEEKLY FORECAST STYLES */
         .forecast-container {
             margin-top: 20px;
             display: flex;
@@ -131,12 +135,12 @@
                 <div><strong id="wind">-- km/h</strong><br><small>Wind</small></div>
             </div>
 
-            <div class="forecast-container" id="forecastContainer">
-                </div>
+            <div class="forecast-container" id="forecastContainer"></div>
         </div>
     </div>
 
     <script>
+        // --- THEME & SEARCH LOGIC ---
         function toggleTheme() {
             const body = document.body;
             const btn = document.getElementById('themeBtn');
@@ -177,20 +181,16 @@
 
                 const { latitude, longitude, name, timezone } = geoData.results[0];
 
-                // Added 'daily' parameters for 7-day forecast
                 const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=${encodeURIComponent(timezone)}`);
                 const weatherData = await weatherRes.json();
 
-                // Update Current Weather
                 document.getElementById('cityName').innerText = name;
                 document.getElementById('temp').innerText = Math.round(weatherData.current.temperature_2m) + "°C";
                 document.getElementById('humidity').innerText = weatherData.current.relative_humidity_2m + "%";
                 document.getElementById('wind').innerText = weatherData.current.wind_speed_10m + " km/h";
                 document.getElementById('icon').innerText = getWeatherIcon(weatherData.current.weather_code);
 
-                // Update Weekly Forecast
                 updateForecast(weatherData.daily);
-
                 localStorage.setItem('lastCity', name);
                 cityInput.blur();
 
@@ -202,9 +202,7 @@
 
         function updateForecast(daily) {
             const container = document.getElementById('forecastContainer');
-            container.innerHTML = ""; // Clear old data
-
-            // Loop through the 7 days (index 0 is today)
+            container.innerHTML = "";
             daily.time.forEach((dateStr, index) => {
                 const date = new Date(dateStr + "T00:00");
                 const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -225,6 +223,7 @@
             });
         }
 
+        // --- ON INITIAL LOAD ---
         window.onload = () => {
             const savedCity = localStorage.getItem('lastCity');
             if (savedCity) {
@@ -238,6 +237,15 @@
                 document.getElementById('themeBtn').innerText = "☀️";
             }
         };
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registered!'))
+                .catch(err => console.log('Service Worker failed:', err));
+            });
+        }
     </script>
 </body>
 </html>
